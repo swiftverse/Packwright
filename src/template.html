@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Packwright turns scattered project notes into a clean context file you can paste into an assistant. It runs in your browser and does not upload your notes.">
+  <title>Packwright — context pack builder</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e5c56'/%3E%3Cpath d='M8 7h11l6 6v12H8z' fill='%23f7fffd'/%3E%3C/svg%3E">
+  <style>___PACKWRIGHT_CSS___</style>
+</head>
+<body>
+  <a class="skip" href="#pack-form">Skip to the pack form</a>
+  <a class="skip" href="#preview-region">Skip to the preview</a>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+          <rect width="48" height="48" rx="12" fill="#0e5c56"></rect>
+          <path d="M14 12h14l8 8v16H14z" fill="#f7fffd"></path>
+          <path d="M28 12v8h8" fill="none" stroke="#0e5c56" stroke-width="1.6"></path>
+          <path d="M18 28h12M18 32h8" stroke="#0e5c56" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>
+        <div>
+          <h1>Packwright</h1>
+          <p class="tagline">Turn scattered notes into a context pack you can reuse.</p>
+        </div>
+      </div>
+      <label class="theme-control">Theme
+        <select id="theme">
+          <option value="system">Match system</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+    </div>
+    <div class="wrap">
+      <p class="lede">Fill in the boxes that matter and leave the rest blank. Packwright builds a clean Markdown file you can copy or download and paste into Claude or another assistant. It stays in this browser tab. It does not call an assistant, and it does not upload your notes.</p>
+      <details class="about">
+        <summary>About this tool</summary>
+        <div class="about-body">
+          <p>Packwright is a local form for people who want to hand an assistant a clear brief. You write the goal, who it is for, what you already decided, the limits, the open questions, and the notes you actually have. The file keeps those pieces separate so an assistant can follow the task without treating your notes as checked facts.</p>
+          <p>There is no account and no quality score. The checklist only tells you if a few essentials are still empty. Word and character counts are not token counts. Assistants count tokens in their own way, and this tool does not guess.</p>
+          <p>Saving a draft is off until you turn it on. A draft sits in this browser’s ordinary storage on this device. Packwright does not encrypt it, and it does not send it anywhere. Anyone who can use this browser profile can read it. Your browser may also keep its own form history. Downloaded files and anything you paste into an assistant leave this page under your control.</p>
+          <p>Do not put passwords, payment numbers, or other secrets in a pack. Nothing here hides them.</p>
+          <p>Packwright is an independent tool by Amit Shrivastava. It is not affiliated with Anthropic, Claude, or any assistant product. Copyright 2026 Amit Shrivastava. Released under the MIT License.</p>
+        </div>
+      </details>
+    </div>
+  </header>
+  <main class="wrap" id="main">
+    <div class="toolbar" role="region" aria-label="Pack actions">
+      <button type="button" class="button-primary" id="copy-pack">Copy pack</button>
+      <button type="button" class="button-primary" id="download-markdown">Download Markdown</button>
+      <button type="button" id="download-json">Save JSON</button>
+      <button type="button" id="import-json">Import JSON</button>
+      <button type="button" class="button-danger" id="clear-pack">Clear pack</button>
+      <input id="import-file" class="file-input" type="file" accept="application/json,.json" aria-hidden="true" tabindex="-1">
+      <p id="status" role="status"></p>
+      <p id="import-alert" role="alert"></p>
+      <div id="copy-fallback" hidden>
+        <p id="copy-fallback-help"></p>
+        <textarea id="copy-fallback-text" readonly aria-label="Context pack, selected so you can copy it"></textarea>
+      </div>
+    </div>
+    <div class="layout">
+      <div class="form-column">
+        <section class="panel" aria-labelledby="samples-heading">
+          <h2 id="samples-heading">Start from a sample</h2>
+          <p class="lede">Samples are fictional and labeled Sample until you edit them. Loading another sample will not replace your own writing unless you confirm it.</p>
+          <div id="presets" class="preset-row"></div>
+          <p id="sample-banner" class="banner" hidden></p>
+        </section>
+        <form id="pack-form" class="panel" autocomplete="off">
+          <h2>Your notes</h2>
+          <p class="hint">Write what you know. Empty sections are listed as not provided. Turn a section off if you want its text left out of the file.</p>
+          <div class="field" data-section="title">
+            <div class="field-top">
+              <h3><label for="pack-title">Pack title</label></h3>
+              <span class="badge" id="badge-title" hidden>Sample</span>
+            </div>
+            <p class="hint" id="hint-title">A short name for this pack. It becomes the file name when you download.</p>
+            <input id="pack-title" type="text" maxlength="200" autocomplete="off" aria-describedby="hint-title">
+          </div>
+          <div id="fields"></div>
+        </form>
+        <section class="panel draft-panel" aria-labelledby="draft-heading">
+          <h2 id="draft-heading">Draft on this device</h2>
+          <p id="draft-disclosure">Saving a draft is optional and off by default. If you turn it on, this browser keeps a copy of the pack in local storage on this device only. Packwright does not encrypt that copy and does not send it anywhere. Anyone who can open this browser profile can read it. Turn saving off to delete the copy. Closing the tab without saving a draft, and without downloading, drops the notes in this tab.</p>
+          <label for="draft-consent">
+            <input id="draft-consent" type="checkbox">
+            <span>Keep a draft in this browser</span>
+          </label>
+          <p id="draft-message" role="status"></p>
+        </section>
+      </div>
+      <div class="preview-column" id="preview-region">
+        <section class="panel" aria-labelledby="check-heading">
+          <h2 id="check-heading">Before you copy</h2>
+          <p class="fine">This checklist looks for missing essentials. It does not judge writing quality, and it does not promise a better answer.</p>
+          <ul id="checklist" class="check-list"></ul>
+        </section>
+        <section class="panel counts" aria-labelledby="count-heading">
+          <h2 id="count-heading">Counts</h2>
+          <p id="notes-count"></p>
+          <p id="file-count"></p>
+          <p id="count-note" class="fine">These counts are Unicode code points and whitespace-separated words. They are not token counts, and they are not a score.</p>
+        </section>
+        <section class="panel" aria-labelledby="preview-heading">
+          <div class="section-head">
+            <h2 id="preview-heading">Preview</h2>
+          </div>
+          <fieldset class="preview-switch">
+            <legend>Preview style</legend>
+            <label><input type="radio" name="preview-mode" value="formatted" checked> Formatted</label>
+            <label><input type="radio" name="preview-mode" value="source"> Markdown text</label>
+          </fieldset>
+          <div id="preview" class="sheet" tabindex="0" aria-label="Formatted preview"></div>
+          <pre id="preview-source" class="sheet source" tabindex="0" aria-label="Markdown source" hidden></pre>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Packwright is an independent tool by Amit Shrivastava. It is not affiliated with Anthropic, Claude, or any assistant product.</p>
+      <p>Copyright 2026 Amit Shrivastava. MIT License. Your notes stay on this device unless you copy them, download them, or paste them somewhere yourself.</p>
+    </div>
+  </footer>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+    <h2 id="confirm-title">Replace these notes?</h2>
+    <p id="confirm-body"></p>
+    <div class="dialog-actions">
+      <button type="button" id="confirm-cancel">Cancel</button>
+      <button type="button" class="button-danger" id="confirm-ok">Replace notes</button>
+    </div>
+  </dialog>
+  <noscript>
+    <p>Packwright needs JavaScript, which is already inside this file. It does not load code from the network. Enable JavaScript for this file, then open it again.</p>
+  </noscript>
+  <script>___PACKWRIGHT_PACK___</script>
+  <script>___PACKWRIGHT_UI___</script>
+</body>
+</html>

@@ -1,0 +1,2165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Packwright turns scattered project notes into a clean context file you can paste into an assistant. It runs in your browser and does not upload your notes.">
+  <title>Packwright — context pack builder</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; media-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; worker-src 'none'">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230e5c56'/%3E%3Cpath d='M8 7h11l6 6v12H8z' fill='%23f7fffd'/%3E%3C/svg%3E">
+  <style>:root {
+  color-scheme: light;
+  --paper: #f3eee4;
+  --paper-2: #e7dfd0;
+  --card: #fffdf8;
+  --ink: #1f1a16;
+  --muted: #5e574e;
+  --line: #ddd4c6;
+  --pine: #0e5c56;
+  --on-pine: #f4fffc;
+  --pine-soft: #e7f4f2;
+  --clay: #8c3828;
+  --sample: #5c3d78;
+  --sample-bg: #f4ecf8;
+  --focus: #0b6e66;
+  --ok: #0e4d38;
+  --ok-bg: #e5f6ee;
+  --note: #5c4514;
+  --note-bg: #fff4df;
+  --missing: #7a2e2e;
+  --missing-bg: #fdeeee;
+  --optional: #3f4d44;
+  --shadow: 0 10px 30px rgba(48, 36, 22, 0.06);
+  --serif: "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+  --sans: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #141311;
+  --paper-2: #201c18;
+  --card: #221f1b;
+  --ink: #f4efe6;
+  --muted: #cbbfae;
+  --line: #3d362f;
+  --pine: #8fd0c8;
+  --on-pine: #10211f;
+  --pine-soft: #1a3330;
+  --clay: #f0b0a4;
+  --sample: #e4d2f6;
+  --sample-bg: #2c2436;
+  --focus: #9be2d8;
+  --ok: #c8f3e2;
+  --ok-bg: #16352c;
+  --note: #f3ddb0;
+  --note-bg: #3a2e18;
+  --missing: #ffd0d0;
+  --missing-bg: #3c2222;
+  --optional: #d5ddd7;
+  --shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #141311;
+    --paper-2: #201c18;
+    --card: #221f1b;
+    --ink: #f4efe6;
+    --muted: #cbbfae;
+    --line: #3d362f;
+    --pine: #8fd0c8;
+    --on-pine: #10211f;
+    --pine-soft: #1a3330;
+    --clay: #f0b0a4;
+    --sample: #e4d2f6;
+    --sample-bg: #2c2436;
+    --focus: #9be2d8;
+    --ok: #c8f3e2;
+    --ok-bg: #16352c;
+    --note: #f3ddb0;
+    --note-bg: #3a2e18;
+    --missing: #ffd0d0;
+    --missing-bg: #3c2222;
+    --optional: #d5ddd7;
+    --shadow: none;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  background:
+    linear-gradient(180deg, var(--paper-2), transparent 220px),
+    var(--paper);
+  color: var(--ink);
+  border-top: 6px solid var(--pine);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; }
+}
+
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  background: var(--card);
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: 8px;
+  z-index: 5;
+}
+
+.skip:focus { top: 12px; }
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.wrap {
+  width: min(1120px, calc(100% - 24px));
+  margin: 0 auto;
+}
+
+.site-header {
+  padding: 22px 0 8px;
+}
+
+.header-row, .field-top, .section-head, .dialog-actions, .preview-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: center;
+}
+
+.header-row > * { min-width: 0; max-width: 100%; }
+
+.header-row { justify-content: space-between; }
+
+.brand { display: flex; gap: 12px; align-items: center; min-width: 0; }
+
+.mark { width: 44px; height: 44px; flex: 0 0 auto; }
+
+h1, h2, h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); margin: 0; }
+
+h2 { font-size: 1.45rem; margin: 0 0 8px; }
+
+h3 { font-size: 1.12rem; margin: 0; }
+
+.tagline, .lede, .hint, .fine, .preset-blurb { color: var(--muted); }
+
+.tagline { margin: 2px 0 0; max-width: 36rem; }
+
+.lede { margin: 8px 0 0; max-width: 46rem; }
+
+.theme-control { display: flex; flex-direction: column; gap: 4px; font-size: 0.92rem; }
+
+select, textarea, input[type="text"] {
+  width: 100%;
+  max-width: 100%;
+  font: inherit;
+  color: inherit;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+select { width: auto; min-height: 44px; }
+
+.theme-control select { width: 100%; }
+
+.about {
+  margin-top: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 4px 14px 2px;
+}
+
+.about summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.about-body { padding: 0 0 12px; }
+
+.about-body p { margin: 0 0 10px; }
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0;
+  background: var(--paper);
+}
+
+button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 14px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.button-primary {
+  background: var(--pine);
+  color: var(--on-pine);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.button-quiet { background: transparent; }
+
+.button-danger {
+  color: var(--clay);
+  border-color: var(--clay);
+  background: transparent;
+}
+
+.toolbar button { flex: 1 1 9.5rem; }
+
+#status, #import-alert, #draft-message {
+  flex: 1 1 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+#import-alert:not(:empty), #draft-message.problem {
+  background: var(--missing-bg);
+  color: var(--missing);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+#status:not(:empty) {
+  background: var(--pine-soft);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.layout {
+  display: grid;
+  gap: 22px;
+  align-items: start;
+  padding-bottom: 48px;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.preset-row, .check-list { display: grid; gap: 8px; }
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  border-radius: 14px;
+  width: 100%;
+  gap: 2px;
+}
+
+.preset[aria-pressed="true"] {
+  border-color: var(--pine);
+  background: var(--pine-soft);
+}
+
+.preset-label { font-weight: 600; color: var(--ink); }
+
+.banner {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--sample-bg);
+  color: var(--sample);
+  overflow-wrap: anywhere;
+}
+
+.field { margin-top: 18px; min-width: 0; scroll-margin-top: 7rem; }
+
+.field-top { justify-content: flex-start; }
+
+.step {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper-2);
+  font-size: 0.85rem;
+  flex: 0 0 auto;
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sample);
+  background: var(--sample-bg);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.hint { margin: 6px 0; }
+
+.include {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 6px 0 8px;
+}
+
+.include input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.25rem;
+  flex: 0 0 auto;
+  accent-color: var(--pine);
+}
+
+textarea { min-height: 7.5rem; resize: vertical; overflow-wrap: anywhere; }
+
+.field[data-included="false"] textarea { background: var(--paper); }
+
+.draft-panel { margin-top: 18px; }
+
+.draft-panel label { display: flex; gap: 8px; align-items: flex-start; font-weight: 600; }
+
+.draft-panel input { width: 1.15rem; height: 1.15rem; margin-top: 0.25rem; flex: 0 0 auto; accent-color: var(--pine); }
+
+.check-list { list-style: none; padding: 0; margin: 0; }
+
+.check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.check-tag {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 2px 7px;
+  margin-top: 2px;
+}
+
+.check-missing { background: var(--missing-bg); }
+.check-missing .check-tag { color: var(--missing); }
+.check-optional { background: transparent; border: 1px dashed var(--line); }
+.check-note { background: var(--note-bg); }
+.check-note .check-tag { color: var(--note); }
+.check-ready { background: var(--ok-bg); }
+.check-ready .check-tag { color: var(--ok); }
+
+.counts p { margin: 0 0 6px; overflow-wrap: anywhere; }
+
+.preview-switch { margin: 8px 0 10px; }
+
+.preview-switch label { display: flex; gap: 6px; align-items: center; min-height: 44px; }
+
+.sheet {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 8px 14px 16px;
+  min-height: 8rem;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.sheet :where(h1, h2, h3, p, li, blockquote, code) { overflow-wrap: anywhere; }
+
+.sheet p { white-space: pre-wrap; }
+
+.sheet h1 { font-size: 1.55rem; }
+.sheet h2 { font-size: 1.25rem; margin-top: 1.1rem; }
+.sheet h3 { margin-top: 0.8rem; }
+
+.sheet blockquote {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--sample);
+  background: var(--sample-bg);
+  color: var(--sample);
+}
+
+.sheet pre {
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  background: var(--card);
+  padding: 10px;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+
+.sheet code { font-family: var(--mono); font-size: 0.92em; }
+
+.source {
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+#copy-fallback textarea { min-height: 8rem; width: 100%; }
+
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  width: min(440px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  padding: 18px;
+}
+
+dialog::backdrop { background: rgba(20, 16, 12, 0.48); }
+
+.dialog-actions { justify-content: flex-end; margin-top: 12px; }
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 18px 0 32px;
+  color: var(--muted);
+}
+
+.site-footer p { margin: 0 0 8px; overflow-wrap: anywhere; }
+
+@media (min-width: 880px) {
+  .preset-row { grid-template-columns: 1fr 1fr; }
+  .layout { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
+  .preview-column {
+    position: sticky;
+    top: 74px;
+    max-height: calc(100vh - 90px);
+    overflow: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .wrap { width: min(1120px, calc(100% - 16px)); }
+  h1 { font-size: 1.7rem; }
+  .panel { padding: 12px; border-radius: 14px; }
+  .toolbar button { flex-basis: calc(50% - 8px); padding-inline: 8px; }
+}
+
+@media (forced-colors: active) {
+  .button-primary, .badge, .banner, .check { border: 1px solid ButtonText; }
+}
+</style>
+</head>
+<body>
+  <a class="skip" href="#pack-form">Skip to the pack form</a>
+  <a class="skip" href="#preview-region">Skip to the preview</a>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+          <rect width="48" height="48" rx="12" fill="#0e5c56"></rect>
+          <path d="M14 12h14l8 8v16H14z" fill="#f7fffd"></path>
+          <path d="M28 12v8h8" fill="none" stroke="#0e5c56" stroke-width="1.6"></path>
+          <path d="M18 28h12M18 32h8" stroke="#0e5c56" stroke-width="1.6" stroke-linecap="round"></path>
+        </svg>
+        <div>
+          <h1>Packwright</h1>
+          <p class="tagline">Turn scattered notes into a context pack you can reuse.</p>
+        </div>
+      </div>
+      <label class="theme-control">Theme
+        <select id="theme">
+          <option value="system">Match system</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+    </div>
+    <div class="wrap">
+      <p class="lede">Fill in the boxes that matter and leave the rest blank. Packwright builds a clean Markdown file you can copy or download and paste into Claude or another assistant. It stays in this browser tab. It does not call an assistant, and it does not upload your notes.</p>
+      <details class="about">
+        <summary>About this tool</summary>
+        <div class="about-body">
+          <p>Packwright is a local form for people who want to hand an assistant a clear brief. You write the goal, who it is for, what you already decided, the limits, the open questions, and the notes you actually have. The file keeps those pieces separate so an assistant can follow the task without treating your notes as checked facts.</p>
+          <p>There is no account and no quality score. The checklist only tells you if a few essentials are still empty. Word and character counts are not token counts. Assistants count tokens in their own way, and this tool does not guess.</p>
+          <p>Saving a draft is off until you turn it on. A draft sits in this browser’s ordinary storage on this device. Packwright does not encrypt it, and it does not send it anywhere. Anyone who can use this browser profile can read it. Your browser may also keep its own form history. Downloaded files and anything you paste into an assistant leave this page under your control.</p>
+          <p>Do not put passwords, payment numbers, or other secrets in a pack. Nothing here hides them.</p>
+          <p>Packwright is an independent tool by Amit Shrivastava. It is not affiliated with Anthropic, Claude, or any assistant product. Copyright 2026 Amit Shrivastava. Released under the MIT License.</p>
+        </div>
+      </details>
+    </div>
+  </header>
+  <main class="wrap" id="main">
+    <div class="toolbar" role="region" aria-label="Pack actions">
+      <button type="button" class="button-primary" id="copy-pack">Copy pack</button>
+      <button type="button" class="button-primary" id="download-markdown">Download Markdown</button>
+      <button type="button" id="download-json">Save JSON</button>
+      <button type="button" id="import-json">Import JSON</button>
+      <button type="button" class="button-danger" id="clear-pack">Clear pack</button>
+      <input id="import-file" class="file-input" type="file" accept="application/json,.json" aria-hidden="true" tabindex="-1">
+      <p id="status" role="status"></p>
+      <p id="import-alert" role="alert"></p>
+      <div id="copy-fallback" hidden>
+        <p id="copy-fallback-help"></p>
+        <textarea id="copy-fallback-text" readonly aria-label="Context pack, selected so you can copy it"></textarea>
+      </div>
+    </div>
+    <div class="layout">
+      <div class="form-column">
+        <section class="panel" aria-labelledby="samples-heading">
+          <h2 id="samples-heading">Start from a sample</h2>
+          <p class="lede">Samples are fictional and labeled Sample until you edit them. Loading another sample will not replace your own writing unless you confirm it.</p>
+          <div id="presets" class="preset-row"></div>
+          <p id="sample-banner" class="banner" hidden></p>
+        </section>
+        <form id="pack-form" class="panel" autocomplete="off">
+          <h2>Your notes</h2>
+          <p class="hint">Write what you know. Empty sections are listed as not provided. Turn a section off if you want its text left out of the file.</p>
+          <div class="field" data-section="title">
+            <div class="field-top">
+              <h3><label for="pack-title">Pack title</label></h3>
+              <span class="badge" id="badge-title" hidden>Sample</span>
+            </div>
+            <p class="hint" id="hint-title">A short name for this pack. It becomes the file name when you download.</p>
+            <input id="pack-title" type="text" maxlength="200" autocomplete="off" aria-describedby="hint-title">
+          </div>
+          <div id="fields"></div>
+        </form>
+        <section class="panel draft-panel" aria-labelledby="draft-heading">
+          <h2 id="draft-heading">Draft on this device</h2>
+          <p id="draft-disclosure">Saving a draft is optional and off by default. If you turn it on, this browser keeps a copy of the pack in local storage on this device only. Packwright does not encrypt that copy and does not send it anywhere. Anyone who can open this browser profile can read it. Turn saving off to delete the copy. Closing the tab without saving a draft, and without downloading, drops the notes in this tab.</p>
+          <label for="draft-consent">
+            <input id="draft-consent" type="checkbox">
+            <span>Keep a draft in this browser</span>
+          </label>
+          <p id="draft-message" role="status"></p>
+        </section>
+      </div>
+      <div class="preview-column" id="preview-region">
+        <section class="panel" aria-labelledby="check-heading">
+          <h2 id="check-heading">Before you copy</h2>
+          <p class="fine">This checklist looks for missing essentials. It does not judge writing quality, and it does not promise a better answer.</p>
+          <ul id="checklist" class="check-list"></ul>
+        </section>
+        <section class="panel counts" aria-labelledby="count-heading">
+          <h2 id="count-heading">Counts</h2>
+          <p id="notes-count"></p>
+          <p id="file-count"></p>
+          <p id="count-note" class="fine">These counts are Unicode code points and whitespace-separated words. They are not token counts, and they are not a score.</p>
+        </section>
+        <section class="panel" aria-labelledby="preview-heading">
+          <div class="section-head">
+            <h2 id="preview-heading">Preview</h2>
+          </div>
+          <fieldset class="preview-switch">
+            <legend>Preview style</legend>
+            <label><input type="radio" name="preview-mode" value="formatted" checked> Formatted</label>
+            <label><input type="radio" name="preview-mode" value="source"> Markdown text</label>
+          </fieldset>
+          <div id="preview" class="sheet" tabindex="0" aria-label="Formatted preview"></div>
+          <pre id="preview-source" class="sheet source" tabindex="0" aria-label="Markdown source" hidden></pre>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Packwright is an independent tool by Amit Shrivastava. It is not affiliated with Anthropic, Claude, or any assistant product.</p>
+      <p>Copyright 2026 Amit Shrivastava. MIT License. Your notes stay on this device unless you copy them, download them, or paste them somewhere yourself.</p>
+    </div>
+  </footer>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+    <h2 id="confirm-title">Replace these notes?</h2>
+    <p id="confirm-body"></p>
+    <div class="dialog-actions">
+      <button type="button" id="confirm-cancel">Cancel</button>
+      <button type="button" class="button-danger" id="confirm-ok">Replace notes</button>
+    </div>
+  </dialog>
+  <noscript>
+    <p>Packwright needs JavaScript, which is already inside this file. It does not load code from the network. Enable JavaScript for this file, then open it again.</p>
+  </noscript>
+  <script>/*
+ * Packwright
+ * Copyright (c) 2026 Amit Shrivastava
+ * Released under the MIT License.
+ *
+ * Pure pack logic: presets, Markdown export, counts, filenames, and JSON schema.
+ * No network, no storage, no DOM. Imported text is data, never evaluated.
+ */
+(function (root, factory) {
+  'use strict';
+  var api = factory();
+  if (typeof module === 'object' && module.exports) {
+    module.exports = api;
+  }
+  root.Packwright = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  var SCHEMA_ID = 'packwright.context-pack';
+  var SCHEMA_VERSION = 1;
+  var MAX_IMPORT_BYTES = 750000;
+  var MAX_FIELD_CHARS = 100000;
+  var MAX_TITLE_CHARS = 200;
+  var MAX_FILENAME_CHARS = 60;
+
+  var DISALLOWED_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+  var BIDI_CONTROLS = /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+  var FILENAME_FORBIDDEN = /[\\/:*?"<>|]/g;
+  var RESERVED_WINDOWS = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+  var SECTIONS = [
+    {
+      id: 'goal',
+      heading: 'Project goal',
+      hint: 'What are you trying to accomplish? A sentence or two is enough.',
+      group: 'task'
+    },
+    {
+      id: 'audience',
+      heading: 'Audience',
+      hint: 'Who will read or use the result, and what do they already know?',
+      group: 'audience'
+    },
+    {
+      id: 'background',
+      heading: 'Background',
+      hint: 'History a newcomer would need. Stick to what you actually know.',
+      group: 'sources'
+    },
+    {
+      id: 'currentState',
+      heading: 'Current state and decisions',
+      hint: 'What is already decided, done, or underway?',
+      group: 'sources'
+    },
+    {
+      id: 'preferences',
+      heading: 'Writing preferences',
+      hint: 'Tone, length, format, and words you want used or avoided.',
+      group: 'preferences'
+    },
+    {
+      id: 'constraints',
+      heading: 'Constraints',
+      hint: 'Limits that must be respected: time, money, tools, rules, or scope.',
+      group: 'constraints'
+    },
+    {
+      id: 'unknowns',
+      heading: 'Unknowns',
+      hint: 'Open questions. A careful assistant should ask rather than invent answers.',
+      group: 'unknowns'
+    },
+    {
+      id: 'references',
+      heading: 'Reference notes',
+      hint: 'Paste only source notes, quotes, or figures you want included.',
+      group: 'sources'
+    },
+    {
+      id: 'nextDeliverable',
+      heading: 'Desired next deliverable',
+      hint: 'The specific thing you want next: a draft, a list, a plan, or a reply.',
+      group: 'task'
+    }
+  ];
+
+  var GROUPS = [
+    {
+      id: 'task',
+      heading: 'Task',
+      intro: 'Do this work. If something else in the pack conflicts with it, ask before guessing.'
+    },
+    {
+      id: 'audience',
+      heading: 'Audience',
+      intro: 'Write for the people described here.'
+    },
+    {
+      id: 'preferences',
+      heading: 'Writing preferences',
+      intro: 'Follow these style choices when you write.'
+    },
+    {
+      id: 'constraints',
+      heading: 'Constraints',
+      intro: 'Respect these limits. Do not work around them quietly.'
+    },
+    {
+      id: 'unknowns',
+      heading: 'Unknowns',
+      intro: 'These questions are unresolved. Do not fill them in with invented facts. Ask, or leave them open.'
+    },
+    {
+      id: 'sources',
+      heading: 'Provided source notes',
+      intro: 'The following text was provided by the person who made this pack. Use it as source material. Packwright has not checked it.'
+    }
+  ];
+
+  var KNOWN_TOP = ['schema', 'schemaVersion', 'title', 'titleSample', 'sections'];
+  var KNOWN_SECTION = ['included', 'text', 'sample'];
+
+  var PRESETS = [
+    {
+      id: 'small-business',
+      label: 'Small business',
+      blurb: 'A weekend preorder page for a fictional bakery.',
+      title: 'Sample: Weekend preorder page for Hearth & Rye',
+      sections: {
+        goal: 'Write a simple weekend bread preorder page for Hearth & Rye, a neighborhood bakery. The page should say what is available this month, how to order, when to pick up, and what the bakery will not do.',
+        audience: 'Neighbors who already stop by the bakery. They read on their phones while walking or waiting in line. They are not bakers. Do not assume they know the owner, and skip milling jargon.',
+        background: 'Sample only: Hearth & Rye is fictional, and so is everyone named here. This example shows what a finished pack can look like. It is a one-counter shop. Mara Ellison bakes on Thursday and Saturday. There is no website yet. Orders today are written on a paper pad by the register.',
+        currentState: 'Mara has decided the November menu stays fixed. She has decided the page will not take payment. She has decided pickup is Saturday only. She has not chosen a logo. The page can be plain text she pastes into a website tool she already has.',
+        preferences: 'Warm, brief, and plain. Short headings. Sentences you can read in one breath. No puns. Do not use the words artisan, curated, elevate, or nestled. Aim for 250 to 400 words.',
+        constraints: 'No online payment. Pickup only, Saturday 9:00 to 11:00 in the morning. Maximum 4 loaves per household. Do not invent prices, ingredients, or awards. Use only the menu and rules in the reference notes. Do not promise same-day orders or delivery. Do not give medical or allergy advice.',
+        unknowns: 'Whether Mara wants a line at the top saying the seeded rye contains sesame. Ask before adding any allergen wording.',
+        references: 'Fictional sample menu and rules for November:\n- Country loaf — 9 dollars — Saturday only\n- Seeded rye — 10 dollars — contains sesame seeds\n- Honey oat — 8 dollars\n- Orders close Thursday at 6:00 in the evening\n- Pickup address in this sample: 18 Lantern Street\n- Orders are not held past 11:00',
+        nextDeliverable: 'A single page I can paste into a website tool: a heading, a short intro, the menu, the order rules, and a pickup note. After the page, list any place you left a blank because the answer was unknown.'
+      }
+    },
+    {
+      id: 'writing-research',
+      label: 'Writing and research',
+      blurb: 'A short newsletter explainer from fictional source notes.',
+      title: 'Sample: Explainer for North Ward Notes',
+      sections: {
+        goal: 'Draft a short explainer about neighborhood book boxes: what they are, how people use them, and why a town might write a few simple rules for them.',
+        audience: 'Readers of North Ward Notes, a fictional community newsletter. Adults with no library training. They care about their block. They do not want a national policy essay.',
+        background: 'Sample only: North Ward Notes, the editor, and the town are fictional. This example shows a research-style pack. Editor June Pell asked for an explainer, not an opinion column and not a profile of one neighbor. The piece will sit on the second page of the December issue.',
+        currentState: 'June has decided the length and a neutral tone. She has decided not to name real neighbors. No interviews have been done. No photograph has been chosen. The writer has not visited a book box for this sample assignment.',
+        preferences: 'Clear and concrete. 650 to 750 words. One idea per paragraph. Define a term the first time you use it. No sarcasm. Do not invent citations to look official. If you are not sure, say so in a short note under the draft.',
+        constraints: 'Do not invent statistics, dates, laws, or quotations. Do not name real people, real towns, or real organizations. Do not give legal advice. Do not tell readers to alter city property. Use only the source notes below. Mark anything beyond them as unknown.',
+        unknowns: 'Whether the newsletter wants a sidebar on how to build a box. Ask before adding construction steps. Paint and lumber details are not in the source notes.',
+        references: 'Fictional source notes supplied by the editor:\n- A neighborhood book box is a small weatherproof cupboard on a private lawn or beside a shop, where people leave books and take books.\n- No one checks out a book and no one is fined.\n- June wants the article to assume three rules: the box sits on private property, it does not block the sidewalk, and it is not used for sales.\n- She has seen boxes last longer when a neighbor throws away soaked books.\n- She does not have figures for how many boxes exist.',
+        nextDeliverable: 'A 650 to 750 word draft with a title and three or four subheadings, plus a short list of claims you refused to make because the source notes did not support them.'
+      }
+    },
+    {
+      id: 'learning',
+      label: 'Learning',
+      blurb: 'A first spreadsheet lesson for a fictional pantry schedule.',
+      title: 'Sample: Learn a volunteer shift grid',
+      sections: {
+        goal: 'Teach me enough spreadsheet skills to build a one-month volunteer shift grid for a Saturday food pantry. Stay with the smallest set of skills that gets the grid working.',
+        audience: 'A volunteer who can type and use email, and who has opened a spreadsheet a few times. They do not know formulas yet. They get nervous around menus. Write as if you are sitting beside them.',
+        background: 'Sample only: Lantern Pantry and the people named here are fictional. This example shows a learning pack. The pantry is open Saturdays from 9:00 to 12:00. Three jobs need a person each Saturday: door, packing table, and deliveries. Eight volunteers rotate. The schedule lives in one sheet that the coordinator, Sam Ortiz, prints on Friday.',
+        currentState: 'Sam already has a paper grid for this month, and it has gaps. He has decided the sheet should show one row per volunteer and one column per Saturday. He has decided not to use a separate scheduling website. He has not started the file.',
+        preferences: 'Patient, numbered steps. Name the menu or the keystroke each time. After each step, say what I should see. Plain words. No jokes about being bad at math. Keep the lesson short enough to finish in one sitting.',
+        constraints: 'Teach only what this grid needs: typing labels, a simple formula to count filled shifts, and a way to see empty cells. Do not require an account, a paid add-on, or a macro. Do not collect phone numbers in the examples. Use the fictional first names from the reference notes and nothing else. If a step differs between common spreadsheet apps, say so instead of guessing one path.',
+        unknowns: 'Which spreadsheet app Sam has. Ask at the start, and give the path for the app he names. If he does not know, show a version that uses only typed formulas.',
+        references: 'Fictional roster for the lesson examples:\n- Volunteers: Sam, Priya, Owen, Lila, Chris, Nora, Ben, Amina\n- Saturdays this month: the 7th, 14th, 21st, and 28th\n- Each Saturday needs 1 person at the door, 2 at packing, and 1 on deliveries\n- In this sample, a person should not be given two jobs on the same Saturday',
+        nextDeliverable: 'A lesson I can follow from a blank sheet to a finished grid, then a three-question practice check. End with what I should save, and what this lesson did not teach.'
+      }
+    },
+    {
+      id: 'coding',
+      label: 'Coding',
+      blurb: 'A small recipe box that stays on this computer, described in plain language.',
+      title: 'Sample: Kitchen Card Box on this computer',
+      sections: {
+        goal: 'Help me make a personal recipe box I can open on my own computer. I want to add a recipe, read it later, and remove it. I do not want an account.',
+        audience: 'Me. I can follow careful steps, and I can edit a text file if you say exactly where. I do not want a lecture on programming history. Explain any term you cannot avoid in the same sentence.',
+        background: 'Sample only: Kitchen Card Box is a fictional project in this example. It shows a coding pack written in plain language. The recipes belong to one household. The file should still open with the internet off. There is no existing code. The first recipes I care about are weekday soups and a weekend pancake card.',
+        currentState: 'I have decided it is one file I can double-click. I have decided recipes stay on this computer. I have decided the first version has a name, a short list of ingredients, and the steps. I have not decided on pictures. I do not have a logo.',
+        preferences: 'Short steps, in order. Say what to save and what name to give the file. Before any large change, restate what you are about to do in one sentence. Prefer the simplest approach that meets the constraints. Comments in plain language.',
+        constraints: 'No account, no paid service, and no remote database. Do not send recipes anywhere. Do not add analytics, ads, or fonts and scripts loaded from the internet. Do not invent extra features such as sharing, logins, or meal planning. If you are unsure how I want something to behave, ask. Keep the first version to adding a recipe, listing recipes, opening one, and deleting one.',
+        unknowns: 'Whether I want the recipes to remain after I close the file. Ask before you choose a way to store them. Do not claim the storage is encrypted.',
+        references: 'Fictional sample recipe to use in examples only:\n- Name: Tuesday lentil soup\n- Ingredients: red lentils, onion, carrot, vegetable broth, salt\n- Steps: rinse the lentils, soften the onion and carrot, simmer until the lentils are tender, salt at the end\nDo not add nutrition claims. This recipe is sample data, not a real household record.',
+        nextDeliverable: 'A plan of the first version in plain language, then the single file, then a short checklist I can use to test add, open, and delete with the internet off.'
+      }
+    }
+  ];
+
+  for (var p = 0; p < PRESETS.length; p += 1) {
+    var preset = PRESETS[p];
+    if (!preset.sections.background || preset.sections.background.indexOf('fictional') === -1) {
+      throw new Error('Preset ' + preset.id + ' must say it is fictional');
+    }
+    for (var s = 0; s < SECTIONS.length; s += 1) {
+      var sectionId = SECTIONS[s].id;
+      if (typeof preset.sections[sectionId] !== 'string' || !preset.sections[sectionId].trim()) {
+        throw new Error('Preset ' + preset.id + ' is missing ' + sectionId);
+      }
+    }
+  }
+
+  function normalizeNewlines(text) {
+    return String(text == null ? '' : text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  }
+
+  function countChars(text) {
+    return Array.from(String(text == null ? '' : text)).length;
+  }
+
+  function countWords(text) {
+    var trimmed = String(text == null ? '' : text).trim();
+    if (!trimmed) return 0;
+    return trimmed.split(/\s+/).length;
+  }
+
+  function emptyPack() {
+    var sections = {};
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      sections[SECTIONS[i].id] = { included: true, text: '', sample: false };
+    }
+    return { title: '', titleSample: false, sections: sections };
+  }
+
+  function presetById(id) {
+    for (var i = 0; i < PRESETS.length; i += 1) {
+      if (PRESETS[i].id === id) return PRESETS[i];
+    }
+    return null;
+  }
+
+  function presetPack(id) {
+    var preset = presetById(id);
+    if (!preset) {
+      throw new Error('Unknown preset');
+    }
+    var pack = emptyPack();
+    pack.title = preset.title;
+    pack.titleSample = true;
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      var sectionId = SECTIONS[i].id;
+      pack.sections[sectionId] = {
+        included: true,
+        text: preset.sections[sectionId],
+        sample: true
+      };
+    }
+    return pack;
+  }
+
+  function hasPopulatedUserEntries(pack) {
+    if (pack.title && pack.title.trim() && !pack.titleSample) return true;
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      var section = pack.sections[SECTIONS[i].id];
+      if (section && section.text && section.text.trim() && !section.sample) return true;
+    }
+    return false;
+  }
+
+  function hasAnyText(pack) {
+    if (pack.title && pack.title.trim()) return true;
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      var section = pack.sections[SECTIONS[i].id];
+      if (section && section.text && section.text.trim()) return true;
+    }
+    return false;
+  }
+
+  function includedNotes(pack) {
+    var parts = [];
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      var section = pack.sections[SECTIONS[i].id];
+      if (section && section.included && section.text && section.text.trim()) {
+        parts.push(normalizeNewlines(section.text).trim());
+      }
+    }
+    return parts.join('\n');
+  }
+
+  function sectionById(id) {
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      if (SECTIONS[i].id === id) return SECTIONS[i];
+    }
+    return null;
+  }
+
+  function buildMarkdown(pack) {
+    var lines = [];
+    var title = pack.title && pack.title.trim() ? pack.title.trim() : 'Untitled context pack';
+    lines.push('# Context pack: ' + title);
+    lines.push('');
+    lines.push('This pack was assembled locally by a person using Packwright. It contains only the text they chose to include. Packwright did not verify facts and did not add project information that is not written below.');
+    lines.push('');
+    lines.push('How to use it: paste this file into an assistant, or attach it, at the start of a conversation.');
+    lines.push('');
+    lines.push('Assistant instructions:');
+    lines.push('- Follow the task.');
+    lines.push('- Treat constraints as limits. Do not work around them quietly.');
+    lines.push('- Do not invent answers for unknowns. Ask, or leave them open.');
+    lines.push('- Treat provided source notes as supplied material, not as facts you have checked.');
+    lines.push('');
+
+    var anySample = false;
+    if (pack.titleSample && pack.title && pack.title.trim()) anySample = true;
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      var probe = pack.sections[SECTIONS[i].id];
+      if (probe && probe.sample && probe.included && probe.text && probe.text.trim()) anySample = true;
+    }
+    if (anySample) {
+      lines.push('> Some included text is still fictional sample copy from a Packwright example. Replace it before you rely on this pack.');
+      lines.push('');
+    }
+
+    for (var g = 0; g < GROUPS.length; g += 1) {
+      var group = GROUPS[g];
+      var present = [];
+      for (var n = 0; n < SECTIONS.length; n += 1) {
+        if (SECTIONS[n].group !== group.id) continue;
+        var sec = pack.sections[SECTIONS[n].id];
+        if (sec && sec.included && sec.text && sec.text.trim()) present.push(SECTIONS[n]);
+      }
+      if (!present.length) continue;
+      lines.push('## ' + group.heading);
+      lines.push('');
+      lines.push(group.intro);
+      lines.push('');
+      for (var m = 0; m < present.length; m += 1) {
+        lines.push('### ' + present[m].heading);
+        lines.push('');
+        lines.push(normalizeNewlines(pack.sections[present[m].id].text).trim());
+        lines.push('');
+      }
+    }
+
+    var notProvided = [];
+    var leftOut = [];
+    for (var k = 0; k < SECTIONS.length; k += 1) {
+      var item = pack.sections[SECTIONS[k].id];
+      if (!item || item.included === false) {
+        leftOut.push(SECTIONS[k]);
+      } else if (!item.text || !item.text.trim()) {
+        notProvided.push(SECTIONS[k]);
+      }
+    }
+
+    if (notProvided.length) {
+      lines.push('## Not provided');
+      lines.push('');
+      lines.push('The person included these sections but left them empty. Do not invent content for them:');
+      lines.push('');
+      for (var a = 0; a < notProvided.length; a += 1) {
+        lines.push('- ' + notProvided[a].heading);
+      }
+      lines.push('');
+    }
+
+    if (leftOut.length) {
+      lines.push('## Left out on purpose');
+      lines.push('');
+      lines.push('The person turned these sections off. Their text is not in this file:');
+      lines.push('');
+      for (var b = 0; b < leftOut.length; b += 1) {
+        lines.push('- ' + leftOut[b].heading);
+      }
+      lines.push('');
+    }
+
+    var notes = includedNotes(pack);
+    lines.push('---');
+    lines.push('');
+    lines.push('Pack built locally with Packwright.');
+    lines.push('Schema: packwright.context-pack version 1.');
+    lines.push('Included notes: ' + countChars(notes) + ' characters, ' + countWords(notes) + ' words.');
+    lines.push('Counts are Unicode code points and whitespace-separated words. They are not token counts.');
+    lines.push('This file is not encrypted. It contains whatever the person chose to include.');
+    lines.push('Packwright is an independent tool and is not affiliated with any assistant product.');
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  function checklist(pack) {
+    var items = [];
+
+    function textOf(id) {
+      var section = pack.sections[id];
+      return section && section.text ? section.text.trim() : '';
+    }
+
+    function included(id) {
+      return !!(pack.sections[id] && pack.sections[id].included);
+    }
+
+    var essentials = [
+      ['goal', 'Project goal', 'Add a project goal so the assistant knows what you want.'],
+      ['audience', 'Audience', 'Add an audience so the writing has someone to speak to.'],
+      ['nextDeliverable', 'Desired next deliverable', 'Add the next deliverable so the assistant knows what to produce.']
+    ];
+
+    for (var i = 0; i < essentials.length; i += 1) {
+      var id = essentials[i][0];
+      var label = essentials[i][1];
+      var message = essentials[i][2];
+      if (!included(id)) {
+        items.push({ id: id, tone: 'missing', message: label + ' is turned off, so it will not appear in the pack.' });
+      } else if (!textOf(id)) {
+        items.push({ id: id, tone: 'missing', message: message });
+      } else if (id === 'goal' && countChars(textOf(id)) < 20) {
+        items.push({ id: 'goal-short', tone: 'note', message: 'The project goal is very short. A sentence or two usually helps.' });
+      }
+    }
+
+    if (included('constraints') && !textOf('constraints')) {
+      items.push({ id: 'constraints', tone: 'optional', message: 'No constraints listed. Add limits if you have them, or leave this blank if you have none.' });
+    }
+    if (included('unknowns') && !textOf('unknowns')) {
+      items.push({ id: 'unknowns', tone: 'optional', message: 'No unknowns listed. Leave this blank if you have no open questions.' });
+    }
+    if (included('references') && !textOf('references')) {
+      items.push({ id: 'references', tone: 'optional', message: 'No reference notes. Paste source material only if you want it included.' });
+    }
+    if (included('background') && included('currentState') && !textOf('background') && !textOf('currentState')) {
+      items.push({ id: 'history', tone: 'optional', message: 'Background and current state are empty. Add them if the assistant needs history.' });
+    }
+
+    var sampleNames = [];
+    if (pack.titleSample && pack.title && pack.title.trim()) sampleNames.push('Pack title');
+    for (var n = 0; n < SECTIONS.length; n += 1) {
+      var sec = pack.sections[SECTIONS[n].id];
+      if (sec && sec.sample && sec.included && sec.text && sec.text.trim()) {
+        sampleNames.push(SECTIONS[n].heading);
+      }
+    }
+    if (sampleNames.length) {
+      items.push({
+        id: 'samples',
+        tone: 'note',
+        message: 'Sample text is still included in: ' + sampleNames.join(', ') + '. Edit those boxes before you treat the pack as yours.'
+      });
+    }
+
+    var missing = false;
+    for (var t = 0; t < items.length; t += 1) {
+      if (items[t].tone === 'missing') missing = true;
+    }
+    if (!missing) {
+      items.unshift({
+        id: 'essentials-ok',
+        tone: 'ready',
+        message: 'Goal, audience, and next deliverable are filled in and included.'
+      });
+    }
+    return items;
+  }
+
+  function safeFilename(title, extension) {
+    var ext = extension === 'json' ? '.json' : '.md';
+    var name = normalizeNewlines(title || '');
+    if (typeof name.normalize === 'function') name = name.normalize('NFC');
+    name = name.replace(DISALLOWED_CONTROLS, ' ');
+    name = name.replace(FILENAME_FORBIDDEN, ' ');
+    name = name.replace(BIDI_CONTROLS, '');
+    name = name.replace(/\s+/g, ' ').trim();
+    name = name.replace(/^[. ]+/, '').replace(/[. ]+$/g, '');
+    if (RESERVED_WINDOWS.test(name)) name = '';
+    var chars = Array.from(name);
+    if (chars.length > MAX_FILENAME_CHARS) {
+      name = chars.slice(0, MAX_FILENAME_CHARS).join('').replace(/[. ]+$/g, '').trim();
+    }
+    if (!name) name = 'context-pack';
+    return name + ext;
+  }
+
+  function serializePack(pack) {
+    var sections = {};
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      var id = SECTIONS[i].id;
+      var section = pack.sections[id] || { included: true, text: '', sample: false };
+      sections[id] = {
+        included: !!section.included,
+        text: normalizeNewlines(section.text || ''),
+        sample: !!section.sample
+      };
+    }
+    var title = normalizeNewlines(pack.title || '').replace(/\s+/g, ' ').trim();
+    return {
+      schema: SCHEMA_ID,
+      schemaVersion: SCHEMA_VERSION,
+      title: title,
+      titleSample: !!pack.titleSample,
+      sections: sections
+    };
+  }
+
+  function exportJson(pack) {
+    return JSON.stringify(serializePack(pack), null, 2) + '\n';
+  }
+
+  function clonePack(pack) {
+    var imported = importJson(exportJson(pack));
+    if (!imported.ok) {
+      throw new Error('Could not clone pack');
+    }
+    return imported.pack;
+  }
+
+  function byteLength(text) {
+    if (typeof TextEncoder !== 'undefined') {
+      return new TextEncoder().encode(text).length;
+    }
+    return unescape(encodeURIComponent(text)).length;
+  }
+
+  function fail(error) {
+    return { ok: false, error: error };
+  }
+
+  function formatNames(names) {
+    var shown = [];
+    var limit = Math.min(names.length, 8);
+    for (var i = 0; i < limit; i += 1) {
+      var chars = Array.from(String(names[i]));
+      shown.push(chars.length > 40 ? chars.slice(0, 40).join('') + '…' : chars.join(''));
+    }
+    if (names.length > 8) shown.push('and ' + (names.length - 8) + ' more');
+    return shown.join(', ');
+  }
+
+  function describeSchema(value) {
+    if (typeof value === 'string') {
+      var chars = Array.from(value);
+      var short = chars.slice(0, 60).join('');
+      return chars.length > 60 ? short + '…' : short;
+    }
+    if (value === undefined) return 'missing';
+    return typeof value;
+  }
+
+  function unknownKeys(object, allowed) {
+    var keys = Object.keys(object);
+    var extra = [];
+    for (var i = 0; i < keys.length; i += 1) {
+      var known = false;
+      for (var j = 0; j < allowed.length; j += 1) {
+        if (keys[i] === allowed[j]) known = true;
+      }
+      if (!known) extra.push(keys[i]);
+    }
+    return extra;
+  }
+
+  function importJson(text) {
+    if (typeof text !== 'string') {
+      return fail('That file could not be read as text. Nothing was changed.');
+    }
+    var source = text;
+    if (source.charCodeAt(0) === 0xfeff) source = source.slice(1);
+    var bytes = byteLength(source);
+    if (bytes > MAX_IMPORT_BYTES) {
+      return fail('That file is too large (' + bytes + ' bytes). The limit is ' + MAX_IMPORT_BYTES + ' bytes. Nothing was changed.');
+    }
+    var data;
+    try {
+      data = JSON.parse(source);
+    } catch (error) {
+      return fail('That file is not valid JSON. Nothing was changed.');
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return fail('That file is not a Packwright pack. Nothing was changed.');
+    }
+    var extraTop = unknownKeys(data, KNOWN_TOP);
+    if (extraTop.length) {
+      return fail('That file has fields this version does not accept: ' + formatNames(extraTop) + '. Nothing was changed.');
+    }
+    if (data.schema !== SCHEMA_ID) {
+      return fail('That file uses a schema Packwright does not read (' + describeSchema(data.schema) + '). Nothing was changed.');
+    }
+    if (data.schemaVersion !== SCHEMA_VERSION) {
+      var shownVersion = data.schemaVersion === undefined ? 'missing' : String(data.schemaVersion);
+      return fail('That file is schema version ' + shownVersion + '. This app reads version ' + SCHEMA_VERSION + ' only. Nothing was changed.');
+    }
+    if (typeof data.title !== 'string') {
+      return fail('The pack title must be text. Nothing was changed.');
+    }
+    if (DISALLOWED_CONTROLS.test(data.title)) {
+      return fail('The pack title contains hidden control characters. Remove them and try again. Nothing was changed.');
+    }
+    var title = normalizeNewlines(data.title).replace(/\s+/g, ' ').trim();
+    if (countChars(title) > MAX_TITLE_CHARS) {
+      return fail('The pack title is too long. The limit is ' + MAX_TITLE_CHARS + ' characters. Nothing was changed.');
+    }
+    if (data.titleSample !== undefined && typeof data.titleSample !== 'boolean') {
+      return fail('The title sample flag must be true or false. Nothing was changed.');
+    }
+    if (!data.sections || typeof data.sections !== 'object' || Array.isArray(data.sections)) {
+      return fail('The pack is missing its sections. Nothing was changed.');
+    }
+    var sectionIds = [];
+    for (var i = 0; i < SECTIONS.length; i += 1) sectionIds.push(SECTIONS[i].id);
+    var extraSections = unknownKeys(data.sections, sectionIds);
+    if (extraSections.length) {
+      return fail('That file has sections this version does not accept: ' + formatNames(extraSections) + '. Nothing was changed.');
+    }
+
+    var pack = emptyPack();
+    pack.title = title;
+    pack.titleSample = data.titleSample === true;
+
+    for (var n = 0; n < SECTIONS.length; n += 1) {
+      var meta = SECTIONS[n];
+      if (!Object.prototype.hasOwnProperty.call(data.sections, meta.id)) {
+        return fail('The “' + meta.heading + '” section is missing. Nothing was changed.');
+      }
+      var incoming = data.sections[meta.id];
+      if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) {
+        return fail('The “' + meta.heading + '” section is not valid. Nothing was changed.');
+      }
+      var extraFields = unknownKeys(incoming, KNOWN_SECTION);
+      if (extraFields.length) {
+        return fail('The “' + meta.heading + '” section has fields this version does not accept: ' + formatNames(extraFields) + '. Nothing was changed.');
+      }
+      if (typeof incoming.included !== 'boolean') {
+        return fail('Include for ' + meta.heading + ' must be true or false. Nothing was changed.');
+      }
+      if (typeof incoming.text !== 'string') {
+        return fail('The text for ' + meta.heading + ' must be text. Nothing was changed.');
+      }
+      if (incoming.sample !== undefined && typeof incoming.sample !== 'boolean') {
+        return fail('The sample flag for ' + meta.heading + ' must be true or false. Nothing was changed.');
+      }
+      if (DISALLOWED_CONTROLS.test(incoming.text)) {
+        return fail('The text for ' + meta.heading + ' contains hidden control characters. Remove them and try again. Nothing was changed.');
+      }
+      var cleaned = normalizeNewlines(incoming.text);
+      if (countChars(cleaned) > MAX_FIELD_CHARS) {
+        return fail('The text for ' + meta.heading + ' is too long. The limit is ' + MAX_FIELD_CHARS + ' characters. Nothing was changed.');
+      }
+      pack.sections[meta.id] = {
+        included: incoming.included,
+        text: cleaned,
+        sample: incoming.sample === true
+      };
+    }
+
+    return { ok: true, pack: pack };
+  }
+
+  function jsonTooLarge(pack) {
+    var issues = [];
+    if (countChars(normalizeNewlines(pack.title || '').replace(/\s+/g, ' ').trim()) > MAX_TITLE_CHARS) {
+      issues.push('Pack title');
+    }
+    for (var i = 0; i < SECTIONS.length; i += 1) {
+      var text = normalizeNewlines((pack.sections[SECTIONS[i].id] || {}).text || '');
+      if (countChars(text) > MAX_FIELD_CHARS) issues.push(SECTIONS[i].heading);
+    }
+    var serialized = exportJson(pack);
+    var tooBigFile = byteLength(serialized) > MAX_IMPORT_BYTES;
+    return { issues: issues, tooBigFile: tooBigFile, bytes: byteLength(serialized) };
+  }
+
+  return {
+    SCHEMA_ID: SCHEMA_ID,
+    SCHEMA_VERSION: SCHEMA_VERSION,
+    MAX_IMPORT_BYTES: MAX_IMPORT_BYTES,
+    MAX_FIELD_CHARS: MAX_FIELD_CHARS,
+    MAX_TITLE_CHARS: MAX_TITLE_CHARS,
+    SECTIONS: SECTIONS,
+    GROUPS: GROUPS,
+    PRESETS: PRESETS,
+    emptyPack: emptyPack,
+    presetPack: presetPack,
+    presetById: presetById,
+    hasPopulatedUserEntries: hasPopulatedUserEntries,
+    hasAnyText: hasAnyText,
+    normalizeNewlines: normalizeNewlines,
+    countWords: countWords,
+    countChars: countChars,
+    includedNotes: includedNotes,
+    buildMarkdown: buildMarkdown,
+    checklist: checklist,
+    safeFilename: safeFilename,
+    serializePack: serializePack,
+    exportJson: exportJson,
+    importJson: importJson,
+    clonePack: clonePack,
+    jsonTooLarge: jsonTooLarge,
+    sectionById: sectionById
+  };
+});
+</script>
+  <script>/*
+ * Packwright
+ * Copyright (c) 2026 Amit Shrivastava
+ * Released under the MIT License.
+ *
+ * Browser UI. Renders user text with text nodes only. Does not store a draft
+ * unless the person turns that on, and does not contact a network.
+ */
+(function () {
+  'use strict';
+
+  var P = globalThis.Packwright;
+  var CONSENT_KEY = 'packwright.v1.consent';
+  var DRAFT_KEY = 'packwright.v1.draft';
+  var PROBE_KEY = 'packwright.v1.probe';
+
+  var ui = {
+    pack: P.emptyPack(),
+    presetId: null,
+    storage: 'ready',
+    consent: false,
+    busy: false
+  };
+
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function isBlockStart(line) {
+    if (!line) return false;
+    if (line.indexOf('```') === 0) return true;
+    if (/^\s*---\s*$/.test(line)) return true;
+    if (/^#{1,3} /.test(line)) return true;
+    if (line.indexOf('> ') === 0) return true;
+    if (/^[-*] /.test(line)) return true;
+    if (/^\d+\. /.test(line)) return true;
+    return false;
+  }
+
+  function appendInline(parent, text) {
+    var i = 0;
+    while (i < text.length) {
+      if (text.charAt(i) === '`') {
+        var closeTick = text.indexOf('`', i + 1);
+        if (closeTick > i + 1) {
+          var code = document.createElement('code');
+          code.textContent = text.slice(i + 1, closeTick);
+          parent.appendChild(code);
+          i = closeTick + 1;
+          continue;
+        }
+      } else if (text.slice(i, i + 2) === '**') {
+        var endBold = text.indexOf('**', i + 2);
+        if (endBold > i + 2) {
+          var strong = document.createElement('strong');
+          strong.textContent = text.slice(i + 2, endBold);
+          parent.appendChild(strong);
+          i = endBold + 2;
+          continue;
+        }
+      } else if (text.charAt(i) === '*') {
+        var endEm = text.indexOf('*', i + 1);
+        if (endEm > i + 1 && text.slice(endEm, endEm + 2) !== '**') {
+          var em = document.createElement('em');
+          em.textContent = text.slice(i + 1, endEm);
+          parent.appendChild(em);
+          i = endEm + 1;
+          continue;
+        }
+      } else {
+        var next = text.length;
+        var tick = text.indexOf('`', i);
+        var star = text.indexOf('*', i);
+        if (tick >= 0 && tick < next) next = tick;
+        if (star >= 0 && star < next) next = star;
+        parent.appendChild(document.createTextNode(text.slice(i, next)));
+        i = next;
+        continue;
+      }
+      parent.appendChild(document.createTextNode(text.charAt(i)));
+      i += 1;
+    }
+  }
+
+  function renderMarkdown(container, markdown) {
+    clearNode(container);
+    var lines = String(markdown || '').split('\n');
+    var i = 0;
+    while (i < lines.length) {
+      var line = lines[i];
+      if (line.indexOf('```') === 0) {
+        var codeLines = [];
+        i += 1;
+        while (i < lines.length && lines[i].indexOf('```') !== 0) {
+          codeLines.push(lines[i]);
+          i += 1;
+        }
+        if (i < lines.length) i += 1;
+        var pre = document.createElement('pre');
+        var code = document.createElement('code');
+        code.textContent = codeLines.join('\n');
+        pre.appendChild(code);
+        container.appendChild(pre);
+        continue;
+      }
+      if (/^\s*---\s*$/.test(line)) {
+        container.appendChild(document.createElement('hr'));
+        i += 1;
+        continue;
+      }
+      var heading = /^(#{1,3}) (.*)$/.exec(line);
+      if (heading) {
+        var h = document.createElement('h' + String(heading[1].length));
+        appendInline(h, heading[2]);
+        container.appendChild(h);
+        i += 1;
+        continue;
+      }
+      if (line.indexOf('> ') === 0) {
+        var quote = [];
+        while (i < lines.length && lines[i].indexOf('> ') === 0) {
+          quote.push(lines[i].slice(2));
+          i += 1;
+        }
+        var blockquote = document.createElement('blockquote');
+        var quoteP = document.createElement('p');
+        appendInline(quoteP, quote.join('\n'));
+        blockquote.appendChild(quoteP);
+        container.appendChild(blockquote);
+        continue;
+      }
+      if (/^[-*] /.test(line)) {
+        var ul = document.createElement('ul');
+        while (i < lines.length && /^[-*] /.test(lines[i])) {
+          var li = document.createElement('li');
+          appendInline(li, lines[i].slice(2));
+          ul.appendChild(li);
+          i += 1;
+        }
+        container.appendChild(ul);
+        continue;
+      }
+      if (/^\d+\. /.test(line)) {
+        var ol = document.createElement('ol');
+        while (i < lines.length && /^\d+\. /.test(lines[i])) {
+          var item = document.createElement('li');
+          appendInline(item, lines[i].replace(/^\d+\. /, ''));
+          ol.appendChild(item);
+          i += 1;
+        }
+        container.appendChild(ol);
+        continue;
+      }
+      if (!line.trim()) {
+        i += 1;
+        continue;
+      }
+      var para = [line];
+      i += 1;
+      while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) {
+        para.push(lines[i]);
+        i += 1;
+      }
+      var p = document.createElement('p');
+      appendInline(p, para.join('\n'));
+      container.appendChild(p);
+    }
+  }
+
+  function setStatus(message) {
+    document.getElementById('status').textContent = message || '';
+  }
+
+  function showAlert(message) {
+    var alert = document.getElementById('import-alert');
+    alert.textContent = message || '';
+    if (message) {
+      alert.tabIndex = -1;
+      alert.focus();
+    }
+  }
+
+  function clearAlert() {
+    document.getElementById('import-alert').textContent = '';
+  }
+
+  function setDraftMessage(message, problem) {
+    var el = document.getElementById('draft-message');
+    el.textContent = message || '';
+    el.classList.toggle('problem', !!problem);
+  }
+
+  function storageErrorMessage(result) {
+    if (result && result.quota) {
+      return 'Could not update the draft stored in this browser because storage is full. Your notes are still in this tab. Download a copy so you do not lose them.';
+    }
+    return 'Could not update the draft because this browser refused storage. Your notes are still in this tab. Download a copy so you do not lose them.';
+  }
+
+  function probeStorage() {
+    try {
+      window.localStorage.setItem(PROBE_KEY, '1');
+      window.localStorage.removeItem(PROBE_KEY);
+      return 'ready';
+    } catch (error) {
+      return 'blocked';
+    }
+  }
+
+  function persistDraft() {
+    if (!ui.consent || ui.storage !== 'ready') return { ok: true, skipped: true };
+    try {
+      window.localStorage.setItem(DRAFT_KEY, P.exportJson(ui.pack));
+      return { ok: true };
+    } catch (error) {
+      var quota = !!(error && (error.name === 'QuotaExceededError' || error.code === 22 || error.code === 1014));
+      return { ok: false, quota: quota };
+    }
+  }
+
+  function draftClause() {
+    if (!ui.consent) return '';
+    return ' The draft stored in this browser will be updated to match.';
+  }
+
+  function askConfirm(title, body, okLabel) {
+    return new Promise(function (resolve) {
+      var dialog = document.getElementById('confirm-dialog');
+      var ok = document.getElementById('confirm-ok');
+      var cancel = document.getElementById('confirm-cancel');
+      if (!dialog || typeof dialog.showModal !== 'function') {
+        resolve(window.confirm(title + '\n\n' + body));
+        return;
+      }
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-body').textContent = body;
+      ok.textContent = okLabel;
+      var previous = document.activeElement;
+      var settled = false;
+      function finish(result) {
+        if (settled) return;
+        settled = true;
+        dialog.removeEventListener('close', onClose);
+        ok.removeEventListener('click', onOk);
+        cancel.removeEventListener('click', onCancel);
+        if (dialog.open) dialog.close();
+        resolve(result);
+        if (previous && typeof previous.focus === 'function') previous.focus();
+      }
+      function onOk() { finish(true); }
+      function onCancel() { finish(false); }
+      function onClose() { finish(false); }
+      ok.addEventListener('click', onOk);
+      cancel.addEventListener('click', onCancel);
+      dialog.addEventListener('close', onClose);
+      dialog.showModal();
+      cancel.focus();
+    });
+  }
+
+  function syncDerived() {
+    var markdown = P.buildMarkdown(ui.pack);
+    var notes = P.includedNotes(ui.pack);
+    document.getElementById('notes-count').textContent =
+      P.countWords(notes) + ' words · ' + P.countChars(notes) + ' characters in your included notes';
+    document.getElementById('file-count').textContent =
+      P.countWords(markdown) + ' words · ' + P.countChars(markdown) + ' characters in the exported file';
+    document.getElementById('preview-source').textContent = markdown;
+    renderMarkdown(document.getElementById('preview'), markdown);
+
+    var titleSample = !!(ui.pack.titleSample && ui.pack.title && ui.pack.title.trim());
+    document.getElementById('badge-title').hidden = !titleSample;
+
+    var anySample = titleSample;
+    var sections = P.SECTIONS;
+    for (var i = 0; i < sections.length; i += 1) {
+      var id = sections[i].id;
+      var section = ui.pack.sections[id];
+      var field = document.querySelector('.field[data-section="' + id + '"]');
+      if (field) field.setAttribute('data-included', section.included ? 'true' : 'false');
+      var showSample = !!(section.sample && section.text && section.text.trim() && section.included);
+      document.getElementById('badge-' + id).hidden = !showSample;
+      if (showSample) anySample = true;
+    }
+
+    var banner = document.getElementById('sample-banner');
+    if (anySample) {
+      banner.hidden = false;
+      banner.textContent = 'Boxes marked Sample are fictional examples, not your notes. Edit a box to make it yours. If you copy or download before that, the file will include the sample and will say so.';
+    } else {
+      banner.hidden = true;
+      banner.textContent = '';
+    }
+
+    var userWriting = P.hasPopulatedUserEntries(ui.pack);
+    var presets = P.PRESETS;
+    for (var p = 0; p < presets.length; p += 1) {
+      var pressed = ui.presetId === presets[p].id && !userWriting;
+      document.getElementById('preset-' + presets[p].id).setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    }
+    document.getElementById('preset-blank').setAttribute('aria-pressed', P.hasAnyText(ui.pack) ? 'false' : 'true');
+
+    var items = P.checklist(ui.pack);
+    var list = document.getElementById('checklist');
+    clearNode(list);
+    var labels = { missing: 'Still needed', optional: 'Optional', note: 'Note', ready: 'Ready' };
+    for (var c = 0; c < items.length; c += 1) {
+      var li = document.createElement('li');
+      li.className = 'check check-' + items[c].tone;
+      var tag = document.createElement('span');
+      tag.className = 'check-tag';
+      tag.textContent = labels[items[c].tone] || 'Note';
+      var msg = document.createElement('span');
+      msg.textContent = items[c].message;
+      li.appendChild(tag);
+      li.appendChild(msg);
+      list.appendChild(li);
+    }
+  }
+
+  function applyForm() {
+    document.getElementById('pack-title').value = ui.pack.title || '';
+    var sections = P.SECTIONS;
+    for (var i = 0; i < sections.length; i += 1) {
+      var id = sections[i].id;
+      document.getElementById('field-' + id).value = ui.pack.sections[id].text;
+      document.getElementById('include-' + id).checked = !!ui.pack.sections[id].included;
+    }
+    syncDerived();
+  }
+
+  function duplicatePack(pack) {
+    var next = P.emptyPack();
+    next.title = pack.title || '';
+    next.titleSample = !!pack.titleSample;
+    var sections = P.SECTIONS;
+    for (var i = 0; i < sections.length; i += 1) {
+      var id = sections[i].id;
+      var section = pack.sections[id];
+      next.sections[id] = {
+        included: !!(section && section.included),
+        text: section && section.text ? section.text : '',
+        sample: !!(section && section.sample)
+      };
+    }
+    return next;
+  }
+
+  function commit(nextPack, nextPresetId) {
+    var previousPack = duplicatePack(ui.pack);
+    var previousPreset = ui.presetId;
+    ui.pack = nextPack;
+    ui.presetId = nextPresetId;
+    if (ui.consent && ui.storage === 'ready') {
+      var saved = persistDraft();
+      if (!saved.ok) {
+        ui.pack = previousPack;
+        ui.presetId = previousPreset;
+        applyForm();
+        setDraftMessage(storageErrorMessage(saved), true);
+        setStatus('The pack was left as it was because the saved draft could not be updated.');
+        return false;
+      }
+    }
+    applyForm();
+    return true;
+  }
+
+  function rememberTyping() {
+    syncDerived();
+    var status = document.getElementById('status');
+    if (status && status.textContent.indexOf('Could not') === -1 && status.textContent.indexOf('left as it was') === -1) {
+      status.textContent = '';
+    }
+    if (!ui.consent) return;
+    var saved = persistDraft();
+    if (!saved.ok) setDraftMessage(storageErrorMessage(saved), true);
+    else if (document.getElementById('draft-message').classList.contains('problem')) {
+      setDraftMessage('Draft saving is on again. The copy in this browser matches this tab.', false);
+    }
+  }
+
+  function onTitleInput() {
+    var title = document.getElementById('pack-title');
+    ui.pack.title = P.normalizeNewlines(title.value).replace(/\n/g, ' ');
+    ui.pack.titleSample = false;
+    rememberTyping();
+  }
+
+  function onTextInput(event) {
+    var id = event.target.id.replace(/^field-/, '');
+    if (!ui.pack.sections[id]) return;
+    ui.pack.sections[id].text = P.normalizeNewlines(event.target.value);
+    ui.pack.sections[id].sample = false;
+    rememberTyping();
+  }
+
+  function onIncludeChange(event) {
+    var id = event.target.id.replace(/^include-/, '');
+    if (!ui.pack.sections[id]) return;
+    ui.pack.sections[id].included = !!event.target.checked;
+    rememberTyping();
+  }
+
+  async function onPreset(id) {
+    if (ui.busy) return;
+    var next = id ? P.presetPack(id) : P.emptyPack();
+    var label = 'Blank pack';
+    if (id) {
+      var preset = P.presetById(id);
+      label = preset ? preset.label : 'sample';
+    }
+    if (id && ui.presetId === id && !P.hasPopulatedUserEntries(ui.pack)) {
+      setStatus(label + ' is already showing.');
+      return;
+    }
+    if (!id && !P.hasAnyText(ui.pack)) {
+      setStatus('The pack is already empty.');
+      return;
+    }
+    var needsConfirm = id ? P.hasPopulatedUserEntries(ui.pack) : P.hasAnyText(ui.pack);
+    if (needsConfirm) {
+      ui.busy = true;
+      var ok = await askConfirm(
+        id ? 'Replace these notes?' : 'Clear this pack?',
+        id
+          ? 'Replace your notes with the ' + label + ' sample? Your writing in this tab will be replaced.' + draftClause()
+          : 'The notes in this tab will be removed.' + draftClause() + ' Files you already downloaded are not affected.',
+        id ? 'Replace notes' : 'Clear notes'
+      );
+      ui.busy = false;
+      if (!ok) {
+        setStatus(id ? 'Kept your notes. The sample was not loaded.' : 'Kept your notes. Nothing was cleared.');
+        return;
+      }
+    }
+    if (!commit(next, id || null)) return;
+    clearAlert();
+    if (id) {
+      setStatus('Loaded the ' + label + ' sample. Boxes marked Sample are examples, not your notes.');
+    } else {
+      setStatus('Cleared the pack. Download a file first next time if you want a copy.');
+    }
+  }
+
+  function enableConsent() {
+    var box = document.getElementById('draft-consent');
+    if (ui.storage !== 'ready') {
+      box.checked = false;
+      ui.consent = false;
+      setDraftMessage('This browser blocked local storage. Packwright will not save a draft. Use Copy or Download before you close the tab. Your notes stay in this tab until then.', true);
+      return;
+    }
+    ui.consent = true;
+    var saved = persistDraft();
+    if (!saved.ok) {
+      ui.consent = false;
+      box.checked = false;
+      setDraftMessage(storageErrorMessage(saved), true);
+      return;
+    }
+    try {
+      window.localStorage.setItem(CONSENT_KEY, 'yes');
+    } catch (error) {
+      ui.consent = false;
+      box.checked = false;
+      try { window.localStorage.removeItem(DRAFT_KEY); } catch (ignore) { /* still blocked */ }
+      var quota = error && (error.name === 'QuotaExceededError' || error.code === 22);
+      setDraftMessage(storageErrorMessage({ quota: !!quota }), true);
+      return;
+    }
+    setDraftMessage('A draft of this pack will stay in this browser until you turn saving off. It is not encrypted.', false);
+  }
+
+  async function disableConsent() {
+    var box = document.getElementById('draft-consent');
+    if (ui.consent) {
+      ui.busy = true;
+      var ok = await askConfirm(
+        'Stop saving a draft?',
+        'This deletes the copy stored in this browser. The notes in this tab stay until you reload or close it. Downloaded files are not deleted.',
+        'Delete saved draft'
+      );
+      ui.busy = false;
+      if (!ok) {
+        box.checked = true;
+        setStatus('Kept the saved draft.');
+        return;
+      }
+    }
+    try {
+      window.localStorage.removeItem(DRAFT_KEY);
+      window.localStorage.removeItem(CONSENT_KEY);
+    } catch (error) {
+      box.checked = true;
+      ui.consent = true;
+      setDraftMessage('The saved draft could not be deleted because this browser refused storage. Your notes are still in this tab.', true);
+      return;
+    }
+    ui.consent = false;
+    box.checked = false;
+    setDraftMessage('The saved draft was deleted from this browser. Nothing was sent anywhere.', false);
+    setStatus('Draft saving is off. The notes in this tab are still here.');
+  }
+
+  function loadDraft() {
+    var box = document.getElementById('draft-consent');
+    ui.storage = probeStorage();
+    if (ui.storage === 'blocked') {
+      box.checked = false;
+      box.disabled = true;
+      ui.consent = false;
+      setDraftMessage('This browser blocked local storage. Packwright will not save a draft. Use Copy or Download before you close the tab. Your notes stay in this tab until then.', true);
+      return;
+    }
+    var consentValue = null;
+    try {
+      consentValue = window.localStorage.getItem(CONSENT_KEY);
+    } catch (error) {
+      ui.storage = 'blocked';
+      box.checked = false;
+      box.disabled = true;
+      ui.consent = false;
+      setDraftMessage('This browser blocked local storage. Packwright will not save a draft. Use Copy or Download before you close the tab. Your notes stay in this tab until then.', true);
+      return;
+    }
+    if (consentValue !== 'yes') {
+      ui.consent = false;
+      box.checked = false;
+      return;
+    }
+    ui.consent = true;
+    box.checked = true;
+    var raw = null;
+    try {
+      raw = window.localStorage.getItem(DRAFT_KEY);
+    } catch (error) {
+      ui.storage = 'blocked';
+      ui.consent = false;
+      box.checked = false;
+      box.disabled = true;
+      setDraftMessage('This browser blocked local storage. Packwright will not save a draft. The form was left as it was.', true);
+      return;
+    }
+    if (!raw) {
+      setDraftMessage('Draft saving is on. Edits in this tab will be kept in this browser.', false);
+      return;
+    }
+    var result = P.importJson(raw);
+    if (!result.ok) {
+      setDraftMessage('A saved draft was found but could not be read. It was not applied. You can turn saving off to delete the stored copy. ' + result.error, true);
+      return;
+    }
+    ui.pack = result.pack;
+    ui.presetId = null;
+    applyForm();
+    setStatus('Restored the draft saved in this browser.');
+    setDraftMessage('Draft saving is on. This copy is stored in this browser only and is not encrypted.', false);
+  }
+
+  function fallbackCopy(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '0';
+    area.style.left = '0';
+    area.style.width = '1px';
+    area.style.height = '1px';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    try { area.setSelectionRange(0, area.value.length); } catch (error) { /* selection may be unsupported */ }
+    var ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch (error) {
+      ok = false;
+    }
+    area.remove();
+    return !!ok;
+  }
+
+  function hideFallback() {
+    var wrap = document.getElementById('copy-fallback');
+    wrap.hidden = true;
+    document.getElementById('copy-fallback-text').value = '';
+  }
+
+  function showFallback(text) {
+    var wrap = document.getElementById('copy-fallback');
+    document.getElementById('copy-fallback-help').textContent =
+      'Automatic copy did not work. The pack is selected below. Press Ctrl+C, or Command+C on a Mac, to copy it.';
+    var box = document.getElementById('copy-fallback-text');
+    box.value = text;
+    wrap.hidden = false;
+    box.focus();
+    box.select();
+    try { box.setSelectionRange(0, box.value.length); } catch (error) { /* still visible */ }
+  }
+
+  async function copyPack() {
+    var text = P.buildMarkdown(ui.pack);
+    var copied = false;
+    if (navigator.clipboard && window.isSecureContext && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      } catch (error) {
+        copied = false;
+      }
+    }
+    if (!copied) copied = fallbackCopy(text);
+    if (copied) {
+      hideFallback();
+      setStatus('Copied the pack. Paste it into your assistant. It was not uploaded.');
+      return;
+    }
+    showFallback(text);
+    setStatus('Copy is blocked in this window. The pack is selected in the box below. Press Ctrl+C, or Command+C on a Mac.');
+  }
+
+  function downloadFile(filename, content, type) {
+    var blob = new Blob([content], { type: type });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 2500);
+  }
+
+  function downloadMarkdown() {
+    var filename = P.safeFilename(ui.pack.title, 'md');
+    downloadFile(filename, P.buildMarkdown(ui.pack), 'text/markdown;charset=utf-8');
+    setStatus('Downloaded ' + filename + '. It stays on this device unless you move the file.');
+  }
+
+  function downloadJson() {
+    var size = P.jsonTooLarge(ui.pack);
+    if (size.issues.length || size.tooBigFile) {
+      var reason = size.issues.length
+        ? 'Shorten these before saving JSON: ' + size.issues.join(', ') + '.'
+        : 'The JSON file would be ' + size.bytes + ' bytes, over the ' + P.MAX_IMPORT_BYTES + ' byte limit this app can open again.';
+      showAlert(reason + ' Nothing was saved. You can still download Markdown.');
+      return;
+    }
+    var filename = P.safeFilename(ui.pack.title, 'json');
+    downloadFile(filename, P.exportJson(ui.pack), 'application/json;charset=utf-8');
+    clearAlert();
+    setStatus('Saved ' + filename + '. It is an editable copy of this pack, not an encrypted file.');
+  }
+
+  async function onImportFile(file) {
+    if (!file) return;
+    if (file.size > P.MAX_IMPORT_BYTES) {
+      showAlert('That file is too large (' + file.size + ' bytes). The limit is ' + P.MAX_IMPORT_BYTES + ' bytes. Nothing was changed.');
+      return;
+    }
+    var text;
+    try {
+      text = await file.text();
+    } catch (error) {
+      showAlert('That file could not be read. Nothing was changed.');
+      return;
+    }
+    var result = P.importJson(text);
+    if (!result.ok) {
+      showAlert(result.error);
+      return;
+    }
+    if (P.hasAnyText(ui.pack)) {
+      if (ui.busy) return;
+      ui.busy = true;
+      var ok = await askConfirm(
+        'Replace these notes?',
+        'The imported pack will replace what is in this tab.' + draftClause(),
+        'Replace notes'
+      );
+      ui.busy = false;
+      if (!ok) {
+        setStatus('Import cancelled. Your notes were left as they were.');
+        return;
+      }
+    }
+    if (!commit(result.pack, null)) return;
+    clearAlert();
+    setStatus('Imported the pack. Check the preview, then copy or download when you are ready.');
+  }
+
+  function addPresetButton(host, id, label, blurb) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'preset';
+    button.id = id ? 'preset-' + id : 'preset-blank';
+    button.setAttribute('aria-pressed', id ? 'false' : 'true');
+    var labelEl = document.createElement('span');
+    labelEl.className = 'preset-label';
+    labelEl.id = button.id + '-label';
+    labelEl.textContent = label;
+    var blurbEl = document.createElement('span');
+    blurbEl.className = 'preset-blurb';
+    blurbEl.id = button.id + '-blurb';
+    blurbEl.textContent = blurb;
+    button.setAttribute('aria-labelledby', labelEl.id);
+    button.setAttribute('aria-describedby', blurbEl.id);
+    button.appendChild(labelEl);
+    button.appendChild(blurbEl);
+    button.addEventListener('click', function () { onPreset(id); });
+    host.appendChild(button);
+  }
+
+  function buildPresets() {
+    var host = document.getElementById('presets');
+    addPresetButton(host, null, 'Blank pack', 'Empty boxes. Nothing is filled in for you.');
+    var presets = P.PRESETS;
+    for (var i = 0; i < presets.length; i += 1) {
+      addPresetButton(host, presets[i].id, presets[i].label, presets[i].blurb);
+    }
+  }
+
+  function buildFields() {
+    var host = document.getElementById('fields');
+    var sections = P.SECTIONS;
+    for (var i = 0; i < sections.length; i += 1) {
+      var meta = sections[i];
+      var wrap = document.createElement('div');
+      wrap.className = 'field';
+      wrap.dataset.section = meta.id;
+
+      var top = document.createElement('div');
+      top.className = 'field-top';
+      var step = document.createElement('span');
+      step.className = 'step';
+      step.textContent = String(i + 1);
+      var heading = document.createElement('h3');
+      var label = document.createElement('label');
+      label.htmlFor = 'field-' + meta.id;
+      label.textContent = meta.heading;
+      heading.appendChild(label);
+      var badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.id = 'badge-' + meta.id;
+      badge.textContent = 'Sample';
+      badge.hidden = true;
+      top.appendChild(step);
+      top.appendChild(heading);
+      top.appendChild(badge);
+
+      var hint = document.createElement('p');
+      hint.className = 'hint';
+      hint.id = 'hint-' + meta.id;
+      hint.textContent = meta.hint;
+
+      var includeWrap = document.createElement('div');
+      includeWrap.className = 'include';
+      var include = document.createElement('input');
+      include.type = 'checkbox';
+      include.id = 'include-' + meta.id;
+      include.checked = true;
+      var includeLabel = document.createElement('label');
+      includeLabel.htmlFor = include.id;
+      includeLabel.textContent = 'Include ' + meta.heading + ' in the pack';
+      includeWrap.appendChild(include);
+      includeWrap.appendChild(includeLabel);
+
+      var area = document.createElement('textarea');
+      area.id = 'field-' + meta.id;
+      area.rows = 5;
+      area.spellcheck = true;
+      area.setAttribute('autocomplete', 'off');
+      area.setAttribute('aria-describedby', hint.id);
+
+      wrap.appendChild(top);
+      wrap.appendChild(hint);
+      wrap.appendChild(includeWrap);
+      wrap.appendChild(area);
+      host.appendChild(wrap);
+      area.addEventListener('input', onTextInput);
+      include.addEventListener('change', onIncludeChange);
+    }
+  }
+
+  function bindStatic() {
+    document.getElementById('pack-form').addEventListener('submit', function (event) {
+      event.preventDefault();
+    });
+    document.getElementById('pack-title').addEventListener('input', onTitleInput);
+    document.getElementById('copy-pack').addEventListener('click', function () { copyPack(); });
+    document.getElementById('download-markdown').addEventListener('click', downloadMarkdown);
+    document.getElementById('download-json').addEventListener('click', downloadJson);
+    document.getElementById('clear-pack').addEventListener('click', function () { onPreset(null); });
+    document.getElementById('import-json').addEventListener('click', function () {
+      document.getElementById('import-file').click();
+    });
+    document.getElementById('import-file').addEventListener('change', function (event) {
+      var file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (file) onImportFile(file);
+    });
+    document.getElementById('draft-consent').addEventListener('change', function () {
+      if (document.getElementById('draft-consent').checked) enableConsent();
+      else disableConsent();
+    });
+    document.getElementById('theme').addEventListener('change', function (event) {
+      var value = event.target.value;
+      if (value === 'light' || value === 'dark') document.documentElement.dataset.theme = value;
+      else delete document.documentElement.dataset.theme;
+    });
+    var modes = document.querySelectorAll('input[name="preview-mode"]');
+    for (var i = 0; i < modes.length; i += 1) {
+      modes[i].addEventListener('change', function (event) {
+        var source = event.target.value === 'source';
+        document.getElementById('preview').hidden = source;
+        document.getElementById('preview-source').hidden = !source;
+      });
+    }
+  }
+
+  buildPresets();
+  buildFields();
+  bindStatic();
+  applyForm();
+  loadDraft();
+})();
+</script>
+</body>
+</html>
